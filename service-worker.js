@@ -1,55 +1,46 @@
-// Verificar si el navegador soporta Service Workers
-if ('serviceWorker' in navigator) {
-    // Registrar el Service Worker
-    navigator.serviceWorker
-      .register('/service-worker.js')
-      .then((registration) => {
-        console.log('Service Worker registrado con éxito:', registration.scope);
-      })
-      .catch((error) => {
-        console.error('Error al registrar el Service Worker:', error);
-      });
-  }
-  
-  // Detectar si la app puede ser instalada (beforeinstallprompt)
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', (event) => {
-    // Prevenir el comportamiento por defecto
-    event.preventDefault();
-    deferredPrompt = event;
-    console.log('Evento beforeinstallprompt capturado.');
-  
-    // Mostrar un botón para instalar la aplicación
-    const installButton = document.createElement('button');
-    installButton.textContent = 'Instalar easyJournal';
-    installButton.classList.add('install-button');
-    document.body.appendChild(installButton);
-  
-    // Manejar el clic en el botón
-    installButton.addEventListener('click', () => {
-      installButton.remove(); // Eliminar el botón después del clic
-      deferredPrompt.prompt(); // Mostrar el prompt de instalación
-  
-      deferredPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('El usuario aceptó instalar la aplicación.');
-        } else {
-          console.log('El usuario rechazó instalar la aplicación.');
-        }
-        deferredPrompt = null;
-      });
-    });
-  });
-  
-  // Detectar si la app está instalada
-  window.addEventListener('appinstalled', () => {
-    console.log('easyJournal fue instalada exitosamente.');
-  });
-  
-  // Lógica adicional para tu botón "Log-In"
-  document.querySelector('.btn').addEventListener('click', (event) => {
-    event.preventDefault();
-    console.log('Botón "Log-In" presionado.');
-    // Aquí puedes añadir lógica para redirigir al usuario o manejar la autenticación
-  });
-  
+const CACHE_NAME = 'app-cache-v1';
+const ASSETS_TO_CACHE = [
+  '/', // Página principal
+  '/index.html', // Archivo HTML principal
+  '/styles.css', // CSS
+  '/script.js', // JS
+  '/favicon.ico', // Ícono
+  '/manifest.json', // Manifest
+  '/icon-192x192.png', // Ícono 192x192
+  '/icon-512x512.png', // Ícono 512x512
+];
+
+// Instalar el Service Worker
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('Archivos cacheados correctamente');
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
+  );
+});
+
+// Activar el Service Worker
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            console.log('Cache antiguo eliminado:', cache);
+            return caches.delete(cache);
+          }
+        })
+      );
+    })
+  );
+});
+
+// Interceptar solicitudes
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
+  );
+});
